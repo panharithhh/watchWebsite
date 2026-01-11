@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://cheapanharith:PASSWORD@db:5432/watch"
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: cheapanharith
+      POSTGRES_PASSWORD: PASSWORD
+      POSTGRES_DB: watch
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
