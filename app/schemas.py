@@ -26,6 +26,10 @@ class UserOut(UserBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserLogin(BaseModel):
+    email : EmailStr
+    password_hash : str
+
 class WatchBase(BaseModel):
     name: str = Field(..., max_length=100)
     brand: Optional[str] = Field(None, max_length=50)

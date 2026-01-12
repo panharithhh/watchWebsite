@@ -18,7 +18,6 @@ class WatchStatus(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = {"schema" : "watch"}
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index = True)
     email = Column(String(100), unique=True, nullable=False,index = True)
@@ -27,7 +26,6 @@ class User(Base):
 
 class Watch(Base):
     __tablename__ = "watches"
-    __table_args__ = {"schema": "watch"}
     
     id = Column(Integer, primary_key=True, index = True)
     name = Column(String(50), nullable= False)
@@ -39,5 +37,5 @@ class Watch(Base):
 
     
     status = Column(Enum(WatchStatus), nullable =False, default=WatchStatus.pending)
-    seller_id = Column(Integer, ForeignKey("watch.users.id", ondelete="CASCADE"), nullable=False)
-    approved_by = Column(Integer, ForeignKey("watch.users.id"), nullable=True)
+    seller_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
