@@ -503,8 +503,6 @@ const discountedListings = computed<DiscountedCard[]>(() => {
   return items
 })
 
-const hasPromos = computed(() => discountedListings.value.length > 0)
-
 const topListings = computed(() => {
   if (!catalog.value.length) return []
   return catalog.value.map((watch) => {
@@ -580,7 +578,7 @@ const performSearch = async (options?: { brand?: string }) => {
     }
     const url = `http://localhost:8000/search${params.toString() ? `?${params}` : ""}`
     const res = await api<{ results: WatchResult[] }>(url)
-    results.value = res.results.map((watch, idx) => {
+    results.value = res.results.map((watch) => {
       const remote = watch.image_url || watch.imageUrl
       const images = remote ? [remote, remote] : [""]
       return { ...watch, images }
@@ -710,7 +708,7 @@ const loadPromotions = async () => {
 const loadCatalog = async () => {
   try {
     const res = await api<{ results: WatchResult[] }>("http://localhost:8000/search")
-    catalog.value = res.results.map((watch, idx) => {
+    catalog.value = res.results.map((watch) => {
       const remote = watch.image_url || watch.imageUrl
       const images = remote ? [remote, remote] : [""]
       return { ...watch, images }

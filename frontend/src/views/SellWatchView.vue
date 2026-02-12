@@ -468,7 +468,7 @@ const editPromotion = async (watchId: number) => {
   promoForm.value.title = promo?.title || ""
   promoForm.value.description = promo?.description || ""
   promoForm.value.discount = promo?.discount || ""
-  promoForm.value.validUntil = promo?.valid_until || promo?.validUntil || ""
+  promoForm.value.validUntil = promo?.valid_until || ""
   promoMessage.value = promo ? "Editing promotion." : "Creating promotion."
   activeTab.value = "promotions"
   await nextTick()
@@ -485,7 +485,7 @@ const selectPromoWatch = (watchId: number) => {
   promoForm.value.title = promo?.title || ""
   promoForm.value.description = promo?.description || ""
   promoForm.value.discount = promo?.discount || ""
-  promoForm.value.validUntil = promo?.valid_until || promo?.validUntil || ""
+  promoForm.value.validUntil = promo?.valid_until || ""
 }
 
 const formatPrice = (price: number) => {

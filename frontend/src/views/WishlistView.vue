@@ -107,7 +107,7 @@ const formatPrice = (price: number) => {
   }).format(price)
 }
 
-const mapImages = (watch: any, idx: number) => {
+const mapImages = (watch: any) => {
   const remote = watch.image_url || watch.imageUrl
   const images = remote ? [remote, remote] : [""]
   return { ...watch, images }
