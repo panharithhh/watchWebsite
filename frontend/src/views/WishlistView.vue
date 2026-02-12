@@ -26,22 +26,20 @@
       <div v-else-if="!items.length" class="search-state">Your wishlist is empty.</div>
       <div v-else-if="!filteredItems.length" class="search-state">No matching items.</div>
       <div v-else class="search-grid">
-        <div v-for="item in filteredItems" :key="item.id" class="search-card">
-          <div
-            class="search-photo"
-            :style="{ backgroundImage: `url(${item.images[0]})` }"
-          ></div>
-          <div class="search-meta">
-            <strong>{{ item.brand }} {{ item.name }}</strong>
-            <span>{{ item.description }}</span>
-            <span class="seller-line">Seller: {{ sellerLabel(item) }}</span>
-            <span class="price">{{ formatPrice(item.price) }}</span>
-          </div>
-          <div class="search-actions">
-            <button class="primary dark" @click="buyNow(item)">Checkout</button>
+        <WatchCard
+          v-for="item in filteredItems"
+          :key="item.id"
+          :title="`${item.brand} ${item.name}`"
+          :description="item.description"
+          :seller="sellerLabel(item)"
+          :price="formatPrice(item.price)"
+          :image="item.images[0]"
+        >
+          <template #actions>
+            <button class="primary dark" @click="buyNow(item)">Buy</button>
             <button class="ghost dark" @click="removeItem(item.id)">Remove</button>
-          </div>
-        </div>
+          </template>
+        </WatchCard>
       </div>
     </section>
 
@@ -74,6 +72,7 @@ import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/lib/api"
 import SearchBar from "@/components/SearchBar.vue"
+import WatchCard from "@/components/WatchCard.vue"
 
 type WatchResult = {
   id: number
@@ -287,54 +286,11 @@ onMounted(loadWishlist)
 .search-grid {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 360px));
   gap: 22px;
-}
-
-.search-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #ededed;
-  padding: 12px;
-  text-align: left;
-  display: grid;
-  gap: 10px;
-}
-
-.search-photo {
-  height: 200px;
-  border-radius: 14px;
-  background: #e6e9ee;
-  background-size: cover;
-  background-position: center;
-}
-
-.search-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.search-meta strong {
-  color: #111827;
-  font-size: 13px;
-}
-
-.search-meta .price {
-  color: #111827;
-  font-weight: 600;
-}
-
-.seller-line {
-  color: #4b5563;
-  font-size: 11px;
-}
-
-.search-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: start;
+  justify-items: start;
+  justify-content: start;
 }
 
 .primary.dark {

@@ -125,26 +125,58 @@
     <section class="section">
       <div class="section-head">
         <h2>{{ topListings.length ? "Top Listings" : "Our Top Picks" }}</h2>
-        <span v-if="promoListings.length" class="pill">Deals</span>
       </div>
-      <div class="card-grid">
+      <div class="listing-tabs">
         <button
+          class="listing-tab"
+          :class="{ active: listingTab === 'all' }"
+          type="button"
+          @click="listingTab = 'all'"
+        >
+          All listings
+        </button>
+        <button
+          class="listing-tab"
+          :class="{ active: listingTab === 'deals' }"
+          type="button"
+          @click="listingTab = 'deals'"
+        >
+          Deals
+        </button>
+      </div>
+      <div v-if="listingTab === 'all'" class="card-grid">
+        <WatchCard
           v-for="item in topListings"
           :key="item.label"
-          class="watch-card"
+          :title="item.label"
+          :description="item.description"
+          :seller="item.seller"
+          :price="item.price"
+          :image="item.image"
+          :badge="item.promo"
+          clickable
           @click="handleSearchClick(item.query)"
-        >
-          <div
-            class="watch-photo"
-            :style="{ backgroundImage: `url(${item.image})` }"
-          >
-            <span v-if="item.promo" class="promo-badge">{{ item.promo }}</span>
-          </div>
-          <div class="watch-meta">
-            <strong>{{ item.label }}</strong>
-            <span>{{ item.price }}</span>
-          </div>
-        </button>
+        />
+      </div>
+      <div v-else>
+        <div v-if="!discountedListings.length" class="search-state">
+          No discounted listings yet.
+        </div>
+        <div v-else class="card-grid">
+          <WatchCard
+            v-for="item in discountedListings"
+            :key="item.id"
+            :title="item.label"
+            :description="item.description"
+            :seller="item.seller"
+            :old-price="item.originalPrice"
+            :new-price="item.discountedPrice"
+            :image="item.image"
+            :badge="item.badge"
+            clickable
+            @click="handleSearchClick(item.query)"
+          />
+        </div>
       </div>
     </section>
 
@@ -156,6 +188,12 @@
         <span>›</span>
         <span>{{ query }}</span>
       </div>
+      <div v-if="activeBrand" class="filter-row">
+        <span class="filter-pill">Brand: {{ activeBrand }}</span>
+        <button class="filter-clear" type="button" @click="clearBrandFilter">
+          Clear filter
+        </button>
+      </div>
       <div v-if="searchError" class="search-state error">{{ searchError }}</div>
       <div v-else-if="searchLoading" class="search-state">Searching...</div>
       <div v-else-if="!primaryResult" class="search-state">No results.</div>
@@ -164,28 +202,20 @@
       </p>
 
       <div v-if="isSearchMode && results.length" class="search-grid">
-        <button
+        <WatchCard
           v-for="watch in results"
           :key="watch.id"
-          class="search-card"
-          :class="{ active: watch.id === selectedId }"
+          :title="`${watch.brand} ${watch.name}`"
+          :description="watch.description"
+          :seller="sellerLabel(watch)"
+          :price="formatPrice(watch.price)"
+          :image="watch.images[0]"
+          :badge="promotionFor(watch.id)?.discount || (promotionFor(watch.id) ? 'Deal' : '')"
+          :active="watch.id === selectedId"
+          clickable
           @click="selectResult(watch.id)"
         >
-          <div
-            class="search-photo"
-            :style="{ backgroundImage: `url(${watch.images[0]})` }"
-          >
-            <span v-if="promotionFor(watch.id)" class="promo-badge">
-              {{ promotionFor(watch.id)?.discount || "Deal" }}
-            </span>
-          </div>
-          <div class="search-meta">
-            <strong>{{ watch.brand }} {{ watch.name }}</strong>
-            <span>{{ watch.description }}</span>
-            <span class="seller-line">Seller: {{ sellerLabel(watch) }}</span>
-            <span class="price">{{ formatPrice(watch.price) }}</span>
-          </div>
-          <div class="search-actions">
+          <template #actions>
             <button
               class="primary dark"
               :disabled="isSeller"
@@ -200,8 +230,8 @@
             >
               Add to wishlist
             </button>
-          </div>
-        </button>
+          </template>
+        </WatchCard>
       </div>
 
       <div v-else-if="primaryResult" class="detail-card">
@@ -309,6 +339,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { api } from "@/lib/api"
+import WatchCard from "@/components/WatchCard.vue"
 import SearchBar from "@/components/SearchBar.vue"
 
 type WatchResult = {
@@ -344,6 +375,20 @@ type ListingCard = {
   price: string
   image: string
   promo?: string
+  description?: string
+  seller?: string
+}
+
+type DiscountedCard = {
+  id: number
+  label: string
+  query: string
+  image: string
+  badge: string
+  originalPrice: string
+  discountedPrice: string
+  description?: string
+  seller?: string
 }
 
 const router = useRouter()
@@ -372,6 +417,8 @@ const purchaseMessage = ref("")
 const purchaseRef = ref<HTMLElement | null>(null)
 const promotions = ref<Promotion[]>([])
 const catalog = ref<WatchResult[]>([])
+const activeBrand = ref<string | null>(null)
+const listingTab = ref<"all" | "deals">("all")
 const buyMenu = {
   categories: [
     "Men watches",
@@ -400,36 +447,78 @@ const primaryResult = computed(() => {
   return results.value.find((r) => r.id === selectedId.value) || results.value[0]
 })
 
-const promoListings = computed(() => {
-  if (!promotions.value.length || !catalog.value.length) return []
-  const catalogMap = new Map(catalog.value.map((watch) => [watch.id, watch]))
-  return promotions.value
-    .map((promo) => {
-      const watchId = promo.watch_id ?? promo.watchId
-      if (!watchId) return null
-      const watch = catalogMap.get(watchId)
-      if (!watch) return null
-      return {
-        label: `${watch.brand} ${watch.name}`,
-        query: watch.name,
-        price: formatPrice(watch.price),
-        image: watch.images[0],
-        promo: promo.discount || "Deal",
-      } as ListingCard
-    })
-    .filter(Boolean) as ListingCard[]
+const promoMap = computed(() => {
+  const map = new Map<number, Promotion>()
+  promotions.value.forEach((promo) => {
+    const watchId = promo.watch_id ?? promo.watchId
+    if (watchId) {
+      map.set(watchId, promo)
+    }
+  })
+  return map
 })
 
-const topListings = computed(() => {
-  if (promoListings.value.length) {
-    return promoListings.value
+const parseDiscount = (discount?: string) => {
+  if (!discount) return null
+  const trimmed = discount.trim()
+  if (!trimmed) return null
+  const numMatch = trimmed.replace(/,/g, "").match(/-?\\d+(?:\\.\\d+)?/)
+  if (!numMatch) return null
+  const value = Number(numMatch[0])
+  if (!Number.isFinite(value) || value <= 0) return null
+  const isPercent = trimmed.includes("%")
+  return { value, isPercent }
+}
+
+const discountedPrice = (price: number, discount?: string) => {
+  const parsed = parseDiscount(discount)
+  if (!parsed) return price
+  if (parsed.isPercent) {
+    const next = price * (1 - parsed.value / 100)
+    return Math.max(0, next)
   }
-  return catalog.value.slice(0, 6).map((watch) => ({
-    label: `${watch.brand} ${watch.name}`,
-    query: watch.name,
-    price: formatPrice(watch.price),
-    image: watch.images[0] || "",
-  }))
+  return Math.max(0, price - parsed.value)
+}
+
+const discountedListings = computed<DiscountedCard[]>(() => {
+  if (!catalog.value.length) return []
+  const items: DiscountedCard[] = []
+  catalog.value.forEach((watch) => {
+    const promo = promoMap.value.get(watch.id)
+    if (!promo) return
+    const original = formatPrice(watch.price)
+    const discounted = formatPrice(discountedPrice(watch.price, promo.discount))
+    items.push({
+      id: watch.id,
+      label: `${watch.brand} ${watch.name}`,
+      query: watch.name,
+      image: watch.image_url || watch.imageUrl || "",
+      badge: promo.discount || "Deal",
+      originalPrice: original,
+      discountedPrice: discounted,
+      description: watch.description,
+      seller: sellerLabel(watch),
+    })
+  })
+  return items
+})
+
+const hasPromos = computed(() => discountedListings.value.length > 0)
+
+const topListings = computed(() => {
+  if (!catalog.value.length) return []
+  return catalog.value.map((watch) => {
+    const promo = promoMap.value.get(watch.id)
+    return {
+      label: `${watch.brand} ${watch.name}`,
+      query: watch.name,
+      price: formatPrice(watch.price),
+      image: watch.image_url || watch.imageUrl || "",
+      promo: promo?.discount || (promo ? "Deal" : undefined),
+      description: watch.description,
+      seller: sellerLabel(watch),
+    } as ListingCard
+  })
 })
 
 const isAuthed = computed(() => {
@@ -482,8 +571,12 @@ const performSearch = async (options?: { brand?: string }) => {
     const params = new URLSearchParams()
     if (options?.brand) {
       params.set("brand", options.brand)
+      activeBrand.value = options.brand
     } else if (query.value.trim()) {
       params.set("q", query.value)
+      activeBrand.value = null
+    } else {
+      activeBrand.value = null
     }
     const url = `http://localhost:8000/search${params.toString() ? `?${params}` : ""}`
     const res = await api<{ results: WatchResult[] }>(url)
@@ -524,6 +617,15 @@ const handleBrandClick = async (brand: string) => {
   }
 }
 
+const clearBrandFilter = () => {
+  activeBrand.value = null
+  query.value = ""
+  results.value = []
+  selectedId.value = null
+  searchError.value = ""
+  searchLoading.value = false
+}
+
 const handleServiceClick = async () => {
   if (showBuyMenu.value) {
     showBuyMenu.value = false
@@ -537,6 +639,7 @@ const resetHome = () => {
   selectedId.value = null
   searchError.value = ""
   searchLoading.value = false
+  activeBrand.value = null
 }
 
 const requireBuyerAccess = async () => {
@@ -873,6 +976,28 @@ watch(
   margin-bottom: 16px;
 }
 
+.listing-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.listing-tab {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.listing-tab.active {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
 .pill {
   background: #0f172a;
   color: #fff;
@@ -971,41 +1096,11 @@ watch(
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 360px));
   gap: 22px;
-}
-
-.watch-card {
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 14px;
-  box-shadow: 0 14px 30px rgba(17, 24, 39, 0.08);
-  border: none;
-  text-align: left;
-  cursor: pointer;
-}
-
-.watch-photo {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 10px;
-  background: #eef0f4;
-  margin-bottom: 10px;
-  background-size: cover;
-  background-position: center;
-}
-
-.watch-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.watch-meta strong {
-  color: #111827;
-  font-size: 14px;
-  font-weight: 600;
+  align-items: start;
+  justify-items: start;
+  justify-content: start;
 }
 
 .empty-card {
@@ -1072,6 +1167,32 @@ watch(
   margin: 6px 0 12px;
 }
 
+.filter-row {
+  margin: 0 0 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-pill {
+  background: #111827;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.filter-clear {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .crumb-link {
   border: none;
   background: none;
@@ -1127,6 +1248,11 @@ watch(
   gap: 10px;
   font-size: 13px;
   color: #6b7280;
+}
+
+.detail-info .seller-line {
+  color: #4b5563;
+  font-size: 12px;
 }
 
 .detail-info h3 {
@@ -1196,65 +1322,13 @@ watch(
 .search-grid {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 360px));
   gap: 22px;
+  align-items: start;
+  justify-items: start;
+  justify-content: start;
 }
 
-.search-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #ededed;
-  padding: 12px;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  gap: 10px;
-}
-
-.search-card.active {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.search-photo {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 10px;
-  background: #e6e9ee;
-  background-size: cover;
-  background-position: center;
-  position: relative;
-}
-
-.search-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.search-meta strong {
-  color: #111827;
-  font-size: 13px;
-}
-
-.search-meta .price {
-  color: #111827;
-  font-weight: 600;
-}
-
-.seller-line {
-  color: #4b5563;
-  font-size: 11px;
-}
-
-.search-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.search-actions button:disabled,
 .detail-actions button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -1278,18 +1352,6 @@ watch(
   border-radius: 10px;
   font-size: 12px;
   cursor: pointer;
-}
-
-.promo-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  background: #111827;
-  color: #fff;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.2);
 }
 
 .promo-note {

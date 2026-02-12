@@ -46,34 +46,59 @@
           </div>
 
           <div class="panel-docs">
-            <div class="panel-docs-title">Required documents</div>
-            <div class="panel-docs-grid">
-              <div class="panel-doc">
-                <div>
-                  <div class="doc-title">Government ID</div>
-                  <div class="doc-meta">ID_card.pdf</div>
-                </div>
-                <span class="doc-chip ok">Received</span>
-              </div>
-              <div class="panel-doc">
-                <div>
-                  <div class="doc-title">Business registration</div>
-                  <div class="doc-meta">business_license.pdf</div>
-                </div>
-                <span class="doc-chip pending">Pending</span>
-              </div>
-              <div class="panel-doc">
-                <div>
-                  <div class="doc-title">Proof of inventory</div>
-                  <div class="doc-meta">inventory_photos.zip</div>
-                </div>
-                <span class="doc-chip ok">Received</span>
+            <div class="panel-docs-title">Attachments</div>
+            <div v-if="user.documents?.length" class="panel-docs-media">
+              <div
+                v-for="(doc, index) in user.documents"
+                :key="`${user.id}-${index}`"
+                class="panel-doc-preview"
+              >
+                <img v-if="isImage(doc)" :src="doc" alt="Seller attachment" />
+                <a v-else :href="doc" target="_blank" rel="noopener">View attachment</a>
               </div>
             </div>
+            <div v-else class="panel-docs-empty">No attachments uploaded.</div>
           </div>
 
           <div class="panel-actions">
-            <BaseButton @click="approve(user.id)">Approve Seller</BaseButton>
+            <BaseButton class="approve-btn" @click="approve(user.id)">
+              Approve Seller
+            </BaseButton>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-kicker">Seller Documents</div>
+            <h1 class="panel-title">Uploaded proof</h1>
+            <p class="panel-sub">All seller attachments submitted at signup.</p>
+          </div>
+          <button class="panel-refresh" type="button" @click="loadSellerDocs" :disabled="docsLoading">
+            {{ docsLoading ? "Refreshing..." : "Refresh" }}
+          </button>
+        </div>
+
+        <p v-if="docsError" class="panel-error">{{ docsError }}</p>
+        <div v-if="docsLoading" class="panel-empty">Loading documents...</div>
+        <div v-else-if="!sellerDocs.length" class="panel-empty">No seller documents yet.</div>
+        <div v-else class="docs-grid">
+          <div v-for="seller in sellerDocs" :key="seller.userId" class="docs-card">
+            <div class="docs-card-head">
+              <div class="panel-name">{{ seller.username }}</div>
+              <div class="panel-email">{{ seller.email }}</div>
+            </div>
+            <div class="docs-card-media">
+              <div
+                v-for="(doc, index) in seller.documents"
+                :key="`${seller.userId}-${index}`"
+                class="panel-doc-preview"
+              >
+                <img v-if="isImage(doc)" :src="doc" alt="Seller attachment" />
+                <a v-else :href="doc" target="_blank" rel="noopener">View attachment</a>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -101,18 +126,26 @@
           No listings found.
         </div>
         <div v-else class="watch-grid">
-          <div v-for="watch in filteredWatches" :key="watch.id" class="watch-card">
-            <div
-              class="watch-photo"
-              :style="{ backgroundImage: `url(${watch.image_url || watch.imageUrl || ''})` }"
-            ></div>
-            <div class="watch-meta">
-              <strong>{{ watch.brand }} {{ watch.name }}</strong>
-              <span>{{ watch.description }}</span>
-              <span class="seller-line">Seller: {{ sellerLabel(watch) }}</span>
-              <span class="price">{{ formatPrice(watch.price) }}</span>
-            </div>
-          </div>
+          <WatchCard
+            v-for="watch in filteredWatches"
+            :key="watch.id"
+            :title="`${watch.brand} ${watch.name}`"
+            :description="watch.description"
+            :seller="sellerLabel(watch)"
+            :price="formatPrice(watch.price)"
+            :image="watch.image_url || watch.imageUrl || ''"
+          >
+            <template #actions>
+              <button
+                class="ghost danger"
+                type="button"
+                :disabled="deletingIds.has(watch.id)"
+                @click.stop="deleteWatch(watch.id)"
+              >
+                {{ deletingIds.has(watch.id) ? "Deleting..." : "Delete" }}
+              </button>
+            </template>
+          </WatchCard>
         </div>
       </section>
     </main>
@@ -124,6 +157,7 @@ import { computed, onMounted, ref } from "vue"
 import BaseButton from "@/components/BaseButton.vue"
 import { api } from "@/lib/api"
 import SearchBar from "@/components/SearchBar.vue"
+import WatchCard from "@/components/WatchCard.vue"
 
 type AdminUser = {
   id: number
@@ -131,6 +165,7 @@ type AdminUser = {
   email: string
   role: string
   seller_verified: boolean
+  documents?: string[]
 }
 
 type WatchItem = {
@@ -145,6 +180,13 @@ type WatchItem = {
   sellerName?: string
 }
 
+type SellerDocs = {
+  userId: number
+  username: string
+  email: string
+  documents: string[]
+}
+
 const pending = ref<AdminUser[]>([])
 const loading = ref(false)
 const error = ref("")
@@ -152,6 +194,10 @@ const watches = ref<WatchItem[]>([])
 const watchLoading = ref(false)
 const watchError = ref("")
 const watchQuery = ref("")
+const deletingIds = ref<Set<number>>(new Set())
+const sellerDocs = ref<SellerDocs[]>([])
+const docsLoading = ref(false)
+const docsError = ref("")
 
 const loadPending = async () => {
   error.value = ""
@@ -188,6 +234,36 @@ const loadWatches = async () => {
   }
 }
 
+const loadSellerDocs = async () => {
+  docsError.value = ""
+  docsLoading.value = true
+  try {
+    sellerDocs.value = await api<SellerDocs[]>("http://localhost:8000/admin/seller-documents")
+  } catch (e: any) {
+    docsError.value = e?.message || "Failed to load seller documents"
+  } finally {
+    docsLoading.value = false
+  }
+}
+
+const deleteWatch = async (watchId: number) => {
+  if (!confirm("Delete this watch listing?")) return
+  const next = new Set(deletingIds.value)
+  next.add(watchId)
+  deletingIds.value = next
+  watchError.value = ""
+  try {
+    await api(`http://localhost:8000/watches/${watchId}`, { method: "POST" })
+    watches.value = watches.value.filter((watch) => watch.id !== watchId)
+  } catch (e: any) {
+    watchError.value = e?.message || "Failed to delete watch"
+  } finally {
+    const updated = new Set(deletingIds.value)
+    updated.delete(watchId)
+    deletingIds.value = updated
+  }
+}
+
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -199,6 +275,8 @@ const formatPrice = (price: number) => {
 const sellerLabel = (watch: WatchItem) => {
   return watch.seller_name || watch.sellerName || "Unknown seller"
 }
+
+const isImage = (doc: string) => doc.startsWith("data:image")
 
 const applyWatchSearch = () => {
   watchQuery.value = watchQuery.value.trim()
@@ -217,6 +295,7 @@ const filteredWatches = computed(() => {
 
 onMounted(() => {
   loadPending()
+  loadSellerDocs()
   loadWatches()
 })
 </script>
@@ -317,6 +396,7 @@ onMounted(() => {
 .panel-refresh {
   border: 1px solid #d1d5db;
   background: #ffffff;
+  color: #111827;
   border-radius: 10px;
   padding: 8px 14px;
   cursor: pointer;
@@ -384,47 +464,59 @@ onMounted(() => {
   color: #374151;
 }
 
-.panel-docs-grid {
-  display: grid;
+.panel-docs-media {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.panel-doc {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid #ededed;
+.panel-doc-preview {
+  width: 120px;
+  height: 120px;
   border-radius: 12px;
-  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.doc-title {
-  font-size: 12px;
-  font-weight: 600;
+.panel-doc-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.doc-meta {
+.panel-doc-preview a {
   font-size: 11px;
+  color: #111827;
+  text-decoration: underline;
+}
+
+.panel-docs-empty {
+  font-size: 12px;
   color: #6b7280;
 }
 
-.doc-chip {
-  font-size: 10px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.docs-grid {
+  display: grid;
+  gap: 16px;
 }
 
-.doc-chip.ok {
-  background: #e8f4ec;
-  color: #1b6b3a;
+.docs-card {
+  background: #ffffff;
+  border: 1px solid #ededed;
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
 }
 
-.doc-chip.pending {
-  background: #fef3c7;
-  color: #92400e;
+.docs-card-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .panel-actions {
@@ -433,50 +525,45 @@ onMounted(() => {
   margin-top: 12px;
 }
 
-.watch-grid {
-  margin-top: 16px;
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.watch-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.watch-photo {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  border-radius: 12px;
-  background: #e6e9ee;
-  background-size: cover;
-  background-position: center;
-}
-
-.watch-meta {
-  display: grid;
-  gap: 6px;
+.approve-btn {
+  background: #111827;
+  color: #ffffff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
   font-size: 12px;
-  color: #6b7280;
-}
-
-.watch-meta strong {
-  color: #111827;
-  font-size: 13px;
-}
-
-.watch-meta .price {
-  color: #111827;
   font-weight: 600;
+  cursor: pointer;
 }
 
-.seller-line {
-  color: #4b5563;
-  font-size: 11px;
+.approve-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ghost.danger {
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  background: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ghost.danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.watch-grid {
+  margin-top: 18px;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 360px));
+  align-items: start;
+  justify-items: start;
+  justify-content: start;
 }
 
 @media (max-width: 720px) {
