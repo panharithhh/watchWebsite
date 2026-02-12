@@ -48,7 +48,6 @@ class Watch(Base):
     approved_by = Column("approved_by", Integer, nullable=True)
 
 
-# Backwards-compat alias if older code referenced the plural name.
 Watches = Watch
 
 
