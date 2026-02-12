@@ -83,6 +83,12 @@ def signUp(userCred: schemas.UserSignup, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(newUser)
 
+    documents = [doc for doc in (userCred.documents or []) if isinstance(doc, str) and doc.strip()]
+    if documents and role_value == models.UserRole.seller.value:
+        for doc in documents:
+            db.add(models.SellerDocument(user_id=newUser.id, data_url=doc))
+        db.commit()
+
     signupCodes.pop(userCred.email, None)
     return newUser
 

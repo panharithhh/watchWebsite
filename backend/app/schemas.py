@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -11,6 +11,7 @@ class UserSignup(BaseModel):
     confirm_password: str
     role: Optional[str] = "user"
     signup_code: Optional[str] = None
+    documents: Optional[List[str]] = None
 
 
 class SignupCodeRequest(BaseModel):
@@ -46,8 +47,18 @@ class AdminUserOut(BaseModel):
     email: str
     role: str
     seller_verified: bool
+    documents: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AdminSellerDocumentsOut(BaseModel):
+    user_id: int = Field(alias="userId")
+    username: str
+    email: str
+    documents: List[str]
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TokenResponse(BaseModel):
