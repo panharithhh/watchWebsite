@@ -51,7 +51,7 @@ const loadService = async () => {
   error.value = ""
   try {
     service.value = await api<ServiceInfo>(
-      "http://localhost:8000/services?type=repair"
+      "/services?type=repair"
     )
   } catch (e: any) {
     error.value = e?.message || "Failed to load repair service"

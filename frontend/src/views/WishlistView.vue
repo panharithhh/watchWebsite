@@ -137,7 +137,7 @@ const loadWishlist = async () => {
   error.value = ""
   try {
     const res = await api<{ wishlist: WatchResult[] }>(
-      "http://localhost:8000/wishlist"
+      "/wishlist"
     )
     items.value = res.wishlist.map(mapImages)
   } catch (e: any) {
@@ -149,7 +149,7 @@ const loadWishlist = async () => {
 
 const removeItem = async (id: number) => {
   try {
-    await api(`http://localhost:8000/wishlist/${id}`, { method: "DELETE" })
+    await api(`/wishlist/${id}`, { method: "DELETE" })
     items.value = items.value.filter((item) => item.id !== id)
     checkoutItems.value = checkoutItems.value.filter((item) => item.id !== id)
   } catch (e: any) {

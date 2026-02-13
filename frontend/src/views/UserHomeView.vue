@@ -576,7 +576,7 @@ const performSearch = async (options?: { brand?: string }) => {
     } else {
       activeBrand.value = null
     }
-    const url = `http://localhost:8000/search${params.toString() ? `?${params}` : ""}`
+    const url = `/search${params.toString() ? `?${params}` : ""}`
     const res = await api<{ results: WatchResult[] }>(url)
     results.value = res.results.map((watch) => {
       const remote = watch.image_url || watch.imageUrl
@@ -670,7 +670,7 @@ const addToWishlist = async (item: WatchResult) => {
     return false
   }
   try {
-    await api(`http://localhost:8000/wishlist/${item.id}`, { method: "POST" })
+    await api(`/wishlist/${item.id}`, { method: "POST" })
     await router.push("/wishlist")
     return true
   } catch (e: any) {
@@ -698,7 +698,7 @@ const placeOrder = () => {
 
 const loadPromotions = async () => {
   try {
-    const res = await api<PromotionResponse>("http://localhost:8000/promotion")
+    const res = await api<PromotionResponse>("/promotion")
     promotions.value = res.promotions || []
   } catch {
     promotions.value = []
@@ -707,7 +707,7 @@ const loadPromotions = async () => {
 
 const loadCatalog = async () => {
   try {
-    const res = await api<{ results: WatchResult[] }>("http://localhost:8000/search")
+    const res = await api<{ results: WatchResult[] }>("/search")
     catalog.value = res.results.map((watch) => {
       const remote = watch.image_url || watch.imageUrl
       const images = remote ? [remote, remote] : [""]

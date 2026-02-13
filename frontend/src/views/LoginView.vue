@@ -54,7 +54,7 @@ const onLogin = async () => {
   error.value = ""
   loading.value = true
   try {
-    const res = await api<LoginResponse>("http://localhost:8000/auth/login", {
+    const res = await api<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email: email.value, password: password.value }),
     })

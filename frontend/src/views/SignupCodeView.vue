@@ -109,7 +109,7 @@ const verifyCode = async () => {
       throw new Error("No signup info found. Go back to sign up.")
     }
     const payload = JSON.parse(raw)
-    await api("http://localhost:8000/auth/signUp", {
+    await api("/auth/signUp", {
       method: "POST",
       body: JSON.stringify({
         ...payload,

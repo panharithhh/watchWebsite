@@ -203,7 +203,7 @@ const loadPending = async () => {
   error.value = ""
   loading.value = true
   try {
-    pending.value = await api<AdminUser[]>("http://localhost:8000/admin/pending-sellers")
+    pending.value = await api<AdminUser[]>("/admin/pending-sellers")
   } catch (e: any) {
     error.value = e?.message || "Failed to load pending sellers"
   } finally {
@@ -214,7 +214,7 @@ const loadPending = async () => {
 const approve = async (userId: number) => {
   error.value = ""
   try {
-    await api(`http://localhost:8000/admin/approve-seller/${userId}`, { method: "POST" })
+    await api(`/admin/approve-seller/${userId}`, { method: "POST" })
     pending.value = pending.value.filter((u) => u.id !== userId)
   } catch (e: any) {
     error.value = e?.message || "Approval failed"
@@ -225,7 +225,7 @@ const loadWatches = async () => {
   watchError.value = ""
   watchLoading.value = true
   try {
-    const res = await api<{ results: WatchItem[] }>("http://localhost:8000/search")
+    const res = await api<{ results: WatchItem[] }>("/search")
     watches.value = res.results
   } catch (e: any) {
     watchError.value = e?.message || "Failed to load inventory"
@@ -238,7 +238,7 @@ const loadSellerDocs = async () => {
   docsError.value = ""
   docsLoading.value = true
   try {
-    sellerDocs.value = await api<SellerDocs[]>("http://localhost:8000/admin/seller-documents")
+    sellerDocs.value = await api<SellerDocs[]>("/admin/seller-documents")
   } catch (e: any) {
     docsError.value = e?.message || "Failed to load seller documents"
   } finally {
@@ -253,7 +253,7 @@ const deleteWatch = async (watchId: number) => {
   deletingIds.value = next
   watchError.value = ""
   try {
-    await api(`http://localhost:8000/watches/${watchId}`, { method: "POST" })
+    await api(`/watches/${watchId}`, { method: "POST" })
     watches.value = watches.value.filter((watch) => watch.id !== watchId)
   } catch (e: any) {
     watchError.value = e?.message || "Failed to delete watch"

@@ -1,20 +1,21 @@
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000"
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "")
 
 function buildUrl(path: string) {
-  // If callers passed absolute localhost URLs, rewrite to the configured base.
-  if (path.startsWith("http://localhost:8000")) {
-    return path.replace("http://localhost:8000", API_BASE)
-  }
-  if (path.startsWith("http") || path.startsWith("https")) {
+  if (/^https?:\/\//i.test(path)) {
     return path
   }
+
+  if (!API_BASE) {
+    throw new Error("VITE_API_BASE_URL is not set")
+  }
+
   return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`
 }
 
 export async function api<T>(path: string, options: RequestInit = {}) {
   const token =
     localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token")
+
   const res = await fetch(buildUrl(path), {
     headers: {
       "Content-Type": "application/json",
@@ -34,7 +35,8 @@ export async function api<T>(path: string, options: RequestInit = {}) {
   }
 
   if (!res.ok) {
-    const msg = data?.detail || data?.error || `Request failed (${res.status})`
+    const msg =
+      data?.detail || data?.error || `Request failed (${res.status} ${res.statusText})`
     throw new Error(msg)
   }
 

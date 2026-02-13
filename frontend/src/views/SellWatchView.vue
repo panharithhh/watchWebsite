@@ -295,7 +295,7 @@ const submitListing = async () => {
   sellLoading.value = true
   try {
     if (editingId.value) {
-      await api(`http://localhost:8000/watches/${editingId.value}`, {
+      await api(`/watches/${editingId.value}`, {
         method: "PUT",
         body: JSON.stringify({
           name: sellForm.value.name,
@@ -309,7 +309,7 @@ const submitListing = async () => {
       sellMessage.value = "Listing updated."
       activeTab.value = "inventory"
     } else {
-      const created = await api<{ id: number }>("http://localhost:8000/watches/getWatch", {
+      const created = await api<{ id: number }>("/watches/getWatch", {
         method: "POST",
         body: JSON.stringify({
           name: sellForm.value.name,
@@ -377,7 +377,7 @@ const submitPromotion = async () => {
       promoMessage.value = "Valid watch ID is required."
       return
     }
-    await api("http://localhost:8000/promotion", {
+    await api("/promotion", {
       method: "POST",
       body: JSON.stringify({
         watchId,
@@ -407,7 +407,7 @@ const loadInventory = async () => {
   if (!isSeller.value) return
   inventoryLoading.value = true
   try {
-    const res = await api<typeof inventory.value>("http://localhost:8000/watches/mine")
+    const res = await api<typeof inventory.value>("/watches/mine")
     inventory.value = res
   } catch {
     inventory.value = []
@@ -420,7 +420,7 @@ const loadPromotions = async () => {
   if (!isSeller.value) return
   try {
     const res = await api<{ promotions: typeof promotions.value }>(
-      "http://localhost:8000/promotion"
+      "/promotion"
     )
     promotions.value = res.promotions || []
   } catch {
@@ -452,7 +452,7 @@ const startEdit = async (item: (typeof inventory.value)[number]) => {
 
 const deleteListing = async (id: number) => {
   try {
-    await api(`http://localhost:8000/watches/${id}`, { method: "POST" })
+    await api(`/watches/${id}`, { method: "POST" })
     inventory.value = inventory.value.filter((item) => item.id !== id)
     if (editingId.value === id) {
       editingId.value = null

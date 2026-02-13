@@ -56,7 +56,7 @@
     loading.value = true
   
     try {
-      const res = await api<{ message: string; code?: string }>("http://localhost:8000/auth/requestSignupCode", {
+      const res = await api<{ message: string; code?: string }>("/auth/requestSignupCode", {
         method: "POST",
         body: JSON.stringify({ email: form.email }),
       })
