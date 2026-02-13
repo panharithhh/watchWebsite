@@ -52,6 +52,21 @@ app.add_middleware(
 
 models.Base.metadata.create_all(bind=engine)
 
+@app.options("/{path:path}")
+async def preflight_handler(path: str, request: Request):
+    origin = request.headers.get("origin", "")
+    return Response(
+        status_code=204,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+            "Access-Control-Allow-Headers": "Authorization,Content-Type",
+        },
+    )
+    
+    
+    
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(watches.router)
@@ -70,6 +85,3 @@ def health():
 
 
 
-@app.options("/{path:path}")
-async def preflight_handler(path: str, request: Request):
-    return Response(status_code=200)
