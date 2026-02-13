@@ -43,30 +43,20 @@ app = FastAPI(title="API")
 # )
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https://.*\.vercel\.app$",
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://watch123-55p5suake-chea-panhariths-projects.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
 models.Base.metadata.create_all(bind=engine)
 
-@app.options("/{path:path}")
-async def preflight_handler(path: str, request: Request):
-    origin = request.headers.get("origin", "")
-    return Response(
-        status_code=204,
-        headers={
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-            "Access-Control-Allow-Headers": "Authorization,Content-Type",
-        },
-    )
-    
-    
-    
+
+     
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(watches.router)
