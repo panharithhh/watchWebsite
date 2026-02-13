@@ -34,13 +34,21 @@ app = FastAPI(title="API")
 #   "https://watch123-55p5suake-chea-panhariths-projects.vercel.app",
 # ]
 
+# app.add_middleware(
+#   CORSMiddleware,
+#   allow_origin_regex=r"^https://.*\.vercel\.app$",
+#   allow_credentials=True,
+#   allow_methods=["*"],
+#   allow_headers=["*"],
+# )
 app.add_middleware(
-  CORSMiddleware,
-  allow_origin_regex=r"^https://.*\.vercel\.app$",
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
+    CORSMiddleware,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 
 models.Base.metadata.create_all(bind=engine)
 
