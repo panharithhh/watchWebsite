@@ -32,7 +32,8 @@ def generateCode(length=6):
     return code
 
 
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"])
+# IMPORTANT: must match the hashes stored in DB (your users table has $2b$... bcrypt hashes)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 @router.post("/signUp", response_model=schemas.UserOut)
 def signUp(userCred: schemas.UserSignup, db: Session = Depends(get_db)):
@@ -126,12 +127,17 @@ def sendSignupCode(recipientEmail: str, code: str) -> bool:
     msg["To"] = recipientEmail
     msg.set_content(f"Your verification code is {code}")
 
-    with smtplib.SMTP(smtpHost, smtpPort) as server:
-        server.starttls()
-        logger.info("Attempting SMTP login for user: %s", smtpUser)
-        server.login(smtpUser, smtpPass)
-        server.send_message(msg)
-    return True
+    try:
+        # timeout prevents the UI from hanging forever if SMTP is slow/blocked
+        with smtplib.SMTP(smtpHost, smtpPort, timeout=10) as server:
+            server.starttls()
+            logger.info("Attempting SMTP login for user: %s", smtpUser)
+            server.login(smtpUser, smtpPass)
+            server.send_message(msg)
+        return True
+    except Exception:
+        logger.exception("Failed to send signup code via SMTP")
+        return False
 
 def sendPasswordResetCode(recipientEmail: str, code: str):
     smtpHost = os.getenv("SMTP_HOST")
@@ -150,11 +156,14 @@ def sendPasswordResetCode(recipientEmail: str, code: str):
     msg["To"] = recipientEmail
     msg.set_content(f"Your password reset code is {code}")
 
-    with smtplib.SMTP(smtpHost, smtpPort) as server:
-        server.starttls()
-        logger.info("Attempting SMTP login for user: %s", smtpUser)
-        server.login(smtpUser, smtpPass)
-        server.send_message(msg)
+    try:
+        with smtplib.SMTP(smtpHost, smtpPort, timeout=10) as server:
+            server.starttls()
+            logger.info("Attempting SMTP login for user: %s", smtpUser)
+            server.login(smtpUser, smtpPass)
+            server.send_message(msg)
+    except Exception:
+        logger.exception("Failed to send password reset code via SMTP")
 
 # @router.post("/signUp", response_model=schemas.UserOut)
 # def signUp(userCred: schemas.UserCreate, db: Session = Depends(get_db)):
