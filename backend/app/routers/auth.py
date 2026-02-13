@@ -128,12 +128,20 @@ def sendSignupCode(recipientEmail: str, code: str) -> bool:
     msg.set_content(f"Your verification code is {code}")
 
     try:
-        # timeout prevents the UI from hanging forever if SMTP is slow/blocked
-        with smtplib.SMTP(smtpHost, smtpPort, timeout=10) as server:
-            server.starttls()
-            logger.info("Attempting SMTP login for user: %s", smtpUser)
-            server.login(smtpUser, smtpPass)
-            server.send_message(msg)
+        # Use SSL directly if port 465, otherwise STARTTLS (587)
+        if smtpPort == 465:
+            with smtplib.SMTP_SSL(smtpHost, smtpPort, timeout=10) as server:
+                logger.info("Attempting SMTP SSL login for user: %s", smtpUser)
+                server.login(smtpUser, smtpPass)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(smtpHost, smtpPort, timeout=10) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                logger.info("Attempting SMTP STARTTLS login for user: %s", smtpUser)
+                server.login(smtpUser, smtpPass)
+                server.send_message(msg)
         return True
     except Exception:
         logger.exception("Failed to send signup code via SMTP")
@@ -157,11 +165,19 @@ def sendPasswordResetCode(recipientEmail: str, code: str):
     msg.set_content(f"Your password reset code is {code}")
 
     try:
-        with smtplib.SMTP(smtpHost, smtpPort, timeout=10) as server:
-            server.starttls()
-            logger.info("Attempting SMTP login for user: %s", smtpUser)
-            server.login(smtpUser, smtpPass)
-            server.send_message(msg)
+        if smtpPort == 465:
+            with smtplib.SMTP_SSL(smtpHost, smtpPort, timeout=10) as server:
+                logger.info("Attempting SMTP SSL login for user: %s", smtpUser)
+                server.login(smtpUser, smtpPass)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(smtpHost, smtpPort, timeout=10) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                logger.info("Attempting SMTP STARTTLS login for user: %s", smtpUser)
+                server.login(smtpUser, smtpPass)
+                server.send_message(msg)
     except Exception:
         logger.exception("Failed to send password reset code via SMTP")
 
