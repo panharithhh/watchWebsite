@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
@@ -67,3 +67,9 @@ app.include_router(services.router)
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+
+@app.options("/{path:path}")
+async def preflight_handler(path: str, request: Request):
+    return Response(status_code=200)
